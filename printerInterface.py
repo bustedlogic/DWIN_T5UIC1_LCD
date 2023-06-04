@@ -341,7 +341,7 @@ class PrinterData:
 		d = r.content.decode('utf-8')
 		try:
 			return json.loads(d)
-		except JSONDecodeError:
+		except json.decoder.JSONDecodeError:
 			print('Decoding JSON has failed')
 		return None
 
