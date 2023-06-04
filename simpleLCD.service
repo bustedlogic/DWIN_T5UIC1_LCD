@@ -4,7 +4,6 @@
 
  [Service]
  Type=idle
- ExecStartPre=/bin/sleep 30
  ExecStart=/bin/sh -c '/usr/bin/env python3 /home/pi/DWIN_T5UIC1_LCD/run.py  > /tmp/lcd.log 2>&1'
 
  [Install]

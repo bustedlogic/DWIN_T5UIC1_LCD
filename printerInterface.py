@@ -341,7 +341,7 @@ class PrinterData:
 		d = r.content.decode('utf-8')
 		try:
 			return json.loads(d)
-		except JSONDecodeError:
+		except json.decoder.JSONDecodeError:
 			print('Decoding JSON has failed')
 		return None
 
@@ -388,7 +388,12 @@ class PrinterData:
 
 	def update_variable(self):
 		query = '/printer/objects/query?extruder&heater_bed&gcode_move&fan'
-		data = self.getREST(query)['result']['status']
+		while True:
+			try:
+				data = self.getREST(query)['result']['status']
+				break
+			except:
+				time.sleep(1)
 		gcm = data['gcode_move']
 		z_offset = gcm['homing_origin'][2] #z offset
 		flow_rate = gcm['extrude_factor'] * 100 #flow rate percent
