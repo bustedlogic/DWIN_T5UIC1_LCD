@@ -1,6 +1,7 @@
 import time
 import multitimer
 import atexit
+# import logging
 
 from encoder import Encoder
 from RPi import GPIO
@@ -8,6 +9,7 @@ from RPi import GPIO
 from printerInterface import PrinterData
 from DWIN_Screen import T5UIC1_LCD
 
+from testpage import TestPage
 
 def current_milli_time():
   return round(time.time() * 1000)
@@ -93,6 +95,7 @@ class DWIN_LCD:
   index_leveling = MROWS
   index_tune = MROWS
 
+  External = -1
   MainMenu = 0
   SelectFile = 1
   Prepare = 2
@@ -299,6 +302,8 @@ class DWIN_LCD:
   PREHEAT_CASE_SAVE = (PREHEAT_CASE_FAN + 1)
   PREHEAT_CASE_TOTAL = PREHEAT_CASE_SAVE
 
+  current_page = TestPage()
+
   # Dwen serial screen initialization
   # Passing parameters: serial port number
   # DWIN screen uses serial port 1 to send
@@ -362,7 +367,6 @@ class DWIN_LCD:
 
   def HMI_Init(self):
     # HMI_SDCardInit()
-
     self.HMI_SetLanguage()
     self.timer.start()
     atexit.register(self.lcdExit)
@@ -373,9 +377,34 @@ class DWIN_LCD:
       self.Goto_PrintProcess()
     elif self.pd.status in ['operational', 'complete', 'standby', 'cancelled']:
       self.Goto_MainMenu()
+      self.checkkey = self.External
+      if self.current_page is not None:
+        # if self.current_page.is_dirty:
+        print('Rendering external page')
+        self.current_page.render(self.lcd)
+      else:
+        print('No external page - defaulting to main menu')
+        self.Goto_MainMenu()
     else:
       self.Goto_MainMenu()
     self.Draw_Status_Area(with_update)
+
+  def HMI_External(self, val):
+    print(f'HMI_External page={self.current_page.name} val={val}')
+    if self.current_page is None:
+      return
+    encoder_diffState = self.get_encoder_state()
+    if encoder_diffState == self.ENCODER_DIFF_ENTER:
+      self.current_page.on_enter(self.pd)
+    elif encoder_diffState == self.ENCODER_DIFF_CW:
+      self.current_page.on_encoder_cw(self.pd)
+    elif encoder_diffState == self.ENCODER_DIFF_CCW:
+      self.current_page.on_encoder_ccw(self.pd)
+    # elif encoder_diffState == self.ENCODER_DIFF_NO:
+
+    if self.current_page.is_dirty:
+      print('Rendering external page')
+      self.current_page.render(self.lcd)
 
   def HMI_MainMenu(self):
     encoder_diffState = self.get_encoder_state()
@@ -2249,7 +2278,9 @@ class DWIN_LCD:
     self.lcd.UpdateLCD()
 
   def encoder_has_data(self, val):
-    if self.checkkey == self.MainMenu:
+    if self.checkkey == self.External:
+      self.HMI_External(val)
+    elif self.checkkey == self.MainMenu:
       self.HMI_MainMenu()
     elif self.checkkey == self.SelectFile:
       self.HMI_SelectFile()
